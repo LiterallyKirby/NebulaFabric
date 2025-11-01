@@ -16,10 +16,10 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.kirby.nebua.Nebula"
+			"com.kirby.nebula.Nebula"
 		],
 		"client": [
-			"com.kirby.nebua.NebulaClient"
+			"com.kirby.nebula.NebulaClient"
 		]
 	},
 	"mixins": [

@@ -1,4 +1,4 @@
-package com.kirby.nebua.mixin;
+package com.kirby.nebula.mixin;
 
 import net.minecraft.server.MinecraftServer;
 import org.spongepowered.asm.mixin.Mixin;

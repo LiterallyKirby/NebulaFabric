@@ -1,4 +1,4 @@
-package com.kirby.nebua.mixin.client;
+package com.kirby.nebula.mixin.client;
 
 import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;

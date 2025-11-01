@@ -1,6 +1,6 @@
 {
 	"required": true,
-	"package": "com.kirby.nebua.mixin",
+	"package": "com.kirby.nebula.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
 		"ExampleMixin"

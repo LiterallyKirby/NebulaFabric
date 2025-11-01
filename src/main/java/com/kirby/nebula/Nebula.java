@@ -1,4 +1,4 @@
-package com.kirby.nebua;
+package com.kirby.nebula;
 
 import net.fabricmc.api.ModInitializer;
 
