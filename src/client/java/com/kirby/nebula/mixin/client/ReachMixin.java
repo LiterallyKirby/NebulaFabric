@@ -2,32 +2,36 @@ package com.kirby.nebula.mixin.client;
 
 import com.kirby.nebula.module.ModuleManager;
 import com.kirby.nebula.module.modules.combat.Reach;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(Player.class)
+@Mixin(GameRenderer.class)
 public class ReachMixin {
     
-    @Inject(method = "getBlockReach", at = @At("RETURN"), cancellable = true)
-    private void onGetBlockReach(CallbackInfoReturnable<Double> cir) {
-        Reach reach = (Reach) ModuleManager.getInstance().getModuleByName("Reach");
-        if (reach != null && reach.shouldApply()) {
-            double original = cir.getReturnValue();
-            double extended = original + reach.getReachDistance();
-            cir.setReturnValue(extended);
-        }
-    }
+    @Shadow @Final
+    private Minecraft minecraft;
     
-    @Inject(method = "getEntityReach", at = @At("RETURN"), cancellable = true)
-    private void onGetEntityReach(CallbackInfoReturnable<Double> cir) {
+    /**
+     * Modify the reach distance used for raycasting
+     * This affects both block and entity interaction range
+     */
+    @ModifyVariable(
+        method = "pick",
+        at = @At("STORE"),
+        ordinal = 0
+    )
+    private double modifyReachDistance(double distance) {
         Reach reach = (Reach) ModuleManager.getInstance().getModuleByName("Reach");
         if (reach != null && reach.shouldApply()) {
-            double original = cir.getReturnValue();
-            double extended = original + reach.getReachDistance();
-            cir.setReturnValue(extended);
+            return distance + reach.getReachDistance();
         }
+        return distance;
     }
 }

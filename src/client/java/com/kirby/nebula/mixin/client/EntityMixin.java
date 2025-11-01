@@ -18,18 +18,11 @@ public abstract class EntityMixin {
     public abstract AABB getBoundingBox();
     
     /**
-     * Expand hitboxes for entity picking/targeting
-     */
-    @Inject(method = "pick", at = @At("HEAD"))
-    private void onPick(CallbackInfoReturnable<AABB> cir) {
-        // This method is called when checking if entities can be targeted
-    }
-    
-    /**
      * Modify the entity's bounding box for collision/targeting
+     * This affects raycasting and entity selection
      */
-    @Inject(method = "getBoundingBox", at = @At("RETURN"), cancellable = true)
-    private void onGetBoundingBox(CallbackInfoReturnable<AABB> cir) {
+    @Inject(method = "getBoundingBoxForCulling", at = @At("RETURN"), cancellable = true)
+    private void onGetBoundingBoxForCulling(CallbackInfoReturnable<AABB> cir) {
         Entity entity = (Entity) (Object) this;
         Hitboxes hitboxes = (Hitboxes) ModuleManager.getInstance().getModuleByName("Hitboxes");
         

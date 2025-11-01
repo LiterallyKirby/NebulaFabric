@@ -5,17 +5,10 @@
 	"client": [
 		"ExampleClientMixin",
 		"ReachMixin",
-		"HitboxMixin",
+		"EntityMixin",
 		"FastPlaceMixin",
 		"SafeWalkMixin",
-		"VelocityMixin",
-		"MouseMixin",
-		"AttackCooldownMixin",
-		"CameraMixin",
-		"GameRendererMixin",
-		"ProjectileMixin",
-		"MultiPlayerGameModeMixin",
-		"EntityMixin"
+		"VelocityMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

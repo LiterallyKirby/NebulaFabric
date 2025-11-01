@@ -18,8 +18,6 @@ public class Velocity extends Module {
 	private final NumberSetting jumpDelay;
 	private final BooleanSetting onlyWhileHurt;
 	private final BooleanSetting onlyWhileSprint;
-
-	// New: discretize / step size to make velocity changes "chunky" (discrete)
 	private final BooleanSetting discretize;
 	private final NumberSetting stepSize;
 	
@@ -30,7 +28,6 @@ public class Velocity extends Module {
 	public Velocity() {
 		super("Velocity", "Reduces the knockback you take", Category.COMBAT);
 		
-		// Mode setting
 		this.mode = new ModeSetting(
 			"Mode",
 			"Velocity reduction mode",
@@ -39,7 +36,6 @@ public class Velocity extends Module {
 		);
 		addSetting(mode);
 		
-		// Add settings
 		this.horizontal = new NumberSetting(
 			"Horizontal",
 			"Horizontal knockback multiplier",
@@ -84,9 +80,8 @@ public class Velocity extends Module {
 		);
 		addSetting(onlyWhileSprint);
 
-		// New: discretize settings (off by default)
 		this.discretize = new BooleanSetting(
-			"Ghost",
+			"Ghost Mode",
 			"Quantize motion to fixed steps to make velocity discrete",
 			false
 		);
@@ -94,7 +89,7 @@ public class Velocity extends Module {
 
 		this.stepSize = new NumberSetting(
 			"Step Size",
-			"Step size for quantization (blocks per tick-ish). Only used when Discretize is true.",
+			"Step size for quantization. Only used when Ghost Mode is true.",
 			0.05,
 			0.01,
 			0.5,
@@ -124,7 +119,7 @@ public class Velocity extends Module {
 		if (mc.player == null) return;
 		LocalPlayer player = mc.player;
 
-		// detect a fresh hit (hurtTime counts down; compare to last tick)
+		// Detect a fresh hit (hurtTime counts down)
 		boolean justGotHit = player.hurtTime > lastHurtTime && player.hurtTime > 0;
 
 		if (justGotHit && shouldProcessHit(player)) {
@@ -155,20 +150,16 @@ public class Velocity extends Module {
 			}
 		}
 
-		// store for next tick comparison
+		// Store for next tick comparison
 		lastHurtTime = player.hurtTime;
 	}
 
-
-
-	// Should we process this hit based on settings?
 	private boolean shouldProcessHit(LocalPlayer player) {
 		boolean hurtCondition = !onlyWhileHurt.getValue() || player.hurtTime > 0;
 		boolean sprintCondition = !onlyWhileSprint.getValue() || player.isSprinting();
 		return hurtCondition && sprintCondition;
 	}
 
-	// Apply horizontal/vertical multipliers and optionally quantize the result
 	private Vec3 applyReduction(Vec3 current, double horizontalMul, double verticalMul) {
 		double nx = current.x * horizontalMul;
 		double ny = current.y * verticalMul;
@@ -185,7 +176,6 @@ public class Velocity extends Module {
 
 		return reduced;
 	}
-
 
 	private Vec3 quantize(Vec3 vec, double step) {
 		if (step <= 0) return vec;
