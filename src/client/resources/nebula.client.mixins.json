@@ -1,6 +1,6 @@
 {
 	"required": true,
-	"package": "com.kirby.nebula.mixin.client",
+	"package": "com.kirby.nebua.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"ExampleClientMixin"
