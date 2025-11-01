@@ -10,13 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Manages all modules in the client
- * To add a new module:
- * 1. Create a new Module class extending Module
- * 2. Add it to the appropriate register method
- * 3. That's it! The UI will automatically display it in the correct category
- */
+
 public class ModuleManager {
 	private static ModuleManager INSTANCE;
 	private final List<Module> modules = new ArrayList<>();
@@ -28,7 +22,6 @@ public class ModuleManager {
 		registerWorldModules();
 		registerMovementModules();
 		registerPlayerModules();
-		// Add more register methods as needed
 	}
 
 	public static ModuleManager getInstance() {
@@ -39,32 +32,42 @@ public class ModuleManager {
 	}
 
 	// === MODULE REGISTRATION ===
-	// Simply add new modules to these methods to include them in the client
 
-private void registerCombatModules() {
-	modules.add(new Velocity());
-	modules.add(new AutoCrystal());
-	modules.add(new LeftClicker());
-}
+	private void registerCombatModules() {
+		modules.add(new Velocity());
+		modules.add(new AutoCrystal());
+		modules.add(new LeftClicker());
+		
+		// Ghost combat modules
+		modules.add(new Autoclicker());
+		modules.add(new AimAssist());
+		modules.add(new Reach());
+		modules.add(new Hitboxes());
+	}
 
-private void registerPlayerModules() {
-	modules.add(new RightClicker());
-}
+	private void registerPlayerModules() {
+		modules.add(new RightClicker());
+		
+		// Ghost player modules
+		modules.add(new FastPlace());
+	}
 
-private void registerRenderingModules() {
-	modules.add(new Fullbright());
-}
+	private void registerRenderingModules() {
+		modules.add(new Fullbright());
+	}
 
-private void registerWorldModules() {
-	modules.add(new NoFall());
-}
+	private void registerWorldModules() {
+		modules.add(new NoFall());
+	}
 
-private void registerMovementModules() {
-	modules.add(new ToggleSprint());
-	modules.add(new Speed());
-	modules.add(new Fly());
-
-}
+	private void registerMovementModules() {
+		modules.add(new ToggleSprint());
+		modules.add(new Speed());
+		modules.add(new Fly());
+		
+		// Ghost movement modules
+		modules.add(new SafeWalk());
+	}
 
 	// === PUBLIC API ===
 
@@ -141,7 +144,6 @@ private void registerMovementModules() {
 			try {
 				module.onTick();
 			} catch (Exception e) {
-				// Log but don't crash
 				System.err.println("Error in module " + module.getName() + ": " + e.getMessage());
 			}
 		}
@@ -155,7 +157,6 @@ private void registerMovementModules() {
 			try {
 				module.onRender();
 			} catch (Exception e) {
-				// Log but don't crash
 				System.err.println(
 						"Error rendering module " + module.getName() + ": " + e.getMessage());
 			}

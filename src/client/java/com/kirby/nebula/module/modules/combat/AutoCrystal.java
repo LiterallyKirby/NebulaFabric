@@ -7,6 +7,7 @@ import com.kirby.nebula.module.settings.ModeSetting;
 import com.kirby.nebula.module.settings.NumberSetting;
 import com.kirby.nebula.util.*;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
@@ -32,6 +33,7 @@ public class AutoCrystal extends Module {
 	private final BooleanSetting targetPlayers;
 	private final BooleanSetting targetMobs;
 	private final BooleanSetting ignoreFriends;
+	private final BooleanSetting smartTarget;
 	
 	// Place settings
 	private final BooleanSetting autoPlace;
@@ -40,6 +42,8 @@ public class AutoCrystal extends Module {
 	private final NumberSetting minPlaceDamage;
 	private final BooleanSetting placeRaytrace;
 	private final ModeSetting placeMode;
+	private final BooleanSetting multiPlace;
+	private final NumberSetting multiPlaceCount;
 	
 	// Break settings
 	private final BooleanSetting autoBreak;
@@ -47,6 +51,7 @@ public class AutoCrystal extends Module {
 	private final NumberSetting breakDelay;
 	private final BooleanSetting breakRaytrace;
 	private final BooleanSetting inhibit;
+	private final BooleanSetting antiWeakness;
 	
 	// Safety settings
 	private final NumberSetting maxSelfDamage;
@@ -54,20 +59,32 @@ public class AutoCrystal extends Module {
 	private final BooleanSetting antiSuicide;
 	private final BooleanSetting pauseOnEat;
 	private final BooleanSetting pauseOnMine;
+	private final BooleanSetting holeCheck;
 	
 	// Misc settings
 	private final BooleanSetting autoSwitch;
 	private final BooleanSetting switchBack;
 	private final ModeSetting rotationMode;
 	private final BooleanSetting predictMovement;
+	private final NumberSetting predictTicks;
+	private final BooleanSetting facePlace;
+	private final NumberSetting facePlaceHealth;
+	
+	// Ghost settings
+	private final BooleanSetting ghostMode;
+	private final NumberSetting randomDelay;
+	private final BooleanSetting humanize;
 	
 	// State tracking
 	private final TimerHelper placeTimer = new TimerHelper();
 	private final TimerHelper breakTimer = new TimerHelper();
+	private final TimerHelper switchBackTimer = new TimerHelper();
 	private LivingEntity currentTarget;
 	private BlockPos lastPlacePos;
 	private Entity lastCrystal;
 	private int previousSlot = -1;
+	private int crystalsPlaced = 0;
+	private long lastActionTime = 0;
 
 	public AutoCrystal() {
 		super("Auto Crystal", "Automatically places and breaks End Crystals", Category.COMBAT);
@@ -107,6 +124,13 @@ public class AutoCrystal extends Module {
 			true
 		);
 		addSetting(ignoreFriends);
+		
+		this.smartTarget = new BooleanSetting(
+			"Smart Target",
+			"Prioritize low health & armor targets",
+			true
+		);
+		addSetting(smartTarget);
 		
 		// Place settings
 		this.autoPlace = new BooleanSetting(
@@ -148,9 +172,23 @@ public class AutoCrystal extends Module {
 			"Place Mode",
 			"Crystal placement mode",
 			"Normal",
-			"Normal", "Damage", "Safe"
+			"Normal", "Damage", "Safe", "Smart"
 		);
 		addSetting(placeMode);
+		
+		this.multiPlace = new BooleanSetting(
+			"Multi Place",
+			"Place multiple crystals per tick",
+			false
+		);
+		addSetting(multiPlace);
+		
+		this.multiPlaceCount = new NumberSetting(
+			"Multi Count",
+			"Max crystals to place per tick",
+			2.0, 1.0, 5.0, 1.0
+		);
+		addSetting(multiPlaceCount);
 		
 		// Break settings
 		this.autoBreak = new BooleanSetting(
@@ -188,6 +226,13 @@ public class AutoCrystal extends Module {
 		);
 		addSetting(inhibit);
 		
+		this.antiWeakness = new BooleanSetting(
+			"Anti Weakness",
+			"Switch to tool when breaking with weakness effect",
+			true
+		);
+		addSetting(antiWeakness);
+		
 		// Safety settings
 		this.maxSelfDamage = new NumberSetting(
 			"Max Self Damage",
@@ -224,6 +269,13 @@ public class AutoCrystal extends Module {
 		);
 		addSetting(pauseOnMine);
 		
+		this.holeCheck = new BooleanSetting(
+			"Hole Check",
+			"Don't target players in safe holes",
+			false
+		);
+		addSetting(holeCheck);
+		
 		// Misc settings
 		this.autoSwitch = new BooleanSetting(
 			"Auto Switch",
@@ -253,6 +305,49 @@ public class AutoCrystal extends Module {
 			true
 		);
 		addSetting(predictMovement);
+		
+		this.predictTicks = new NumberSetting(
+			"Predict Ticks",
+			"How many ticks to predict",
+			3.0, 1.0, 10.0, 1.0
+		);
+		addSetting(predictTicks);
+		
+		this.facePlace = new BooleanSetting(
+			"Face Place",
+			"Always place at target's feet when low health",
+			true
+		);
+		addSetting(facePlace);
+		
+		this.facePlaceHealth = new NumberSetting(
+			"FP Health",
+			"Health threshold for face placing",
+			8.0, 0.0, 20.0, 1.0
+		);
+		addSetting(facePlaceHealth);
+		
+		// Ghost settings
+		this.ghostMode = new BooleanSetting(
+			"Ghost Mode",
+			"Make actions look more human-like",
+			false
+		);
+		addSetting(ghostMode);
+		
+		this.randomDelay = new NumberSetting(
+			"Random Delay",
+			"Random delay variation (ms)",
+			20.0, 0.0, 100.0, 5.0
+		);
+		addSetting(randomDelay);
+		
+		this.humanize = new BooleanSetting(
+			"Humanize",
+			"Add human-like imperfections",
+			false
+		);
+		addSetting(humanize);
 	}
 
 	@Override
@@ -262,6 +357,7 @@ public class AutoCrystal extends Module {
 		lastPlacePos = null;
 		lastCrystal = null;
 		previousSlot = -1;
+		crystalsPlaced = 0;
 	}
 
 	@Override
@@ -276,39 +372,44 @@ public class AutoCrystal extends Module {
 
 	@Override
 	public void onTick() {
-		if (!PlayerHelper.isPlayerValid()) {
-			com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Player not valid");
-			return;
-		}
+		if (!PlayerHelper.isPlayerValid()) return;
 		
 		// Check pause conditions
-		if (shouldPause()) {
-			com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Paused");
-			return;
-		}
+		if (shouldPause()) return;
 		
 		// Update target
 		if (autoTarget.getValue()) {
 			updateTarget();
-			if (currentTarget != null) {
-				com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Target found - " + currentTarget.getName().getString());
-			} else {
-				com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: No target found");
-			}
 		}
 		
 		if (currentTarget == null) return;
 		
-		// Auto break crystals
-		if (autoBreak.getValue() && breakTimer.hasReached((long) breakDelay.getValue().doubleValue())) {
-			com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Attempting to break crystals");
+		// Apply ghost mode delays
+		if (ghostMode.getValue() && !canPerformAction()) return;
+		
+		// Auto break crystals (higher priority)
+		if (autoBreak.getValue() && breakTimer.hasReached(getEffectiveDelay(breakDelay.getValue()))) {
 			breakCrystals();
 		}
 		
 		// Auto place crystals
-		if (autoPlace.getValue() && placeTimer.hasReached((long) placeDelay.getValue().doubleValue())) {
-			com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Attempting to place crystal");
-			placeCrystal();
+		if (autoPlace.getValue() && placeTimer.hasReached(getEffectiveDelay(placeDelay.getValue()))) {
+			if (multiPlace.getValue()) {
+				int count = (int) multiPlaceCount.getValue().doubleValue();
+				for (int i = 0; i < count; i++) {
+					if (!placeCrystal()) break;
+				}
+			} else {
+				placeCrystal();
+			}
+		}
+		
+		// Handle switch back
+		if (switchBack.getValue() && previousSlot != -1 && switchBackTimer.hasReached(100)) {
+			if (!InventoryHelper.isHolding(Items.END_CRYSTAL)) {
+				InventoryHelper.switchToSlot(previousSlot);
+				previousSlot = -1;
+			}
 		}
 	}
 
@@ -326,19 +427,36 @@ public class AutoCrystal extends Module {
 		return false;
 	}
 
+	private long getEffectiveDelay(double baseDelay) {
+		if (!ghostMode.getValue()) return (long) baseDelay;
+		
+		double random = Math.random() * randomDelay.getValue();
+		return (long) (baseDelay + random);
+	}
+
+	private boolean canPerformAction() {
+		if (!ghostMode.getValue()) return true;
+		
+		long currentTime = System.currentTimeMillis();
+		long timeSinceLastAction = currentTime - lastActionTime;
+		
+		// Minimum 50ms between actions in ghost mode
+		if (timeSinceLastAction < 50) return false;
+		
+		lastActionTime = currentTime;
+		return true;
+	}
+
 	private void updateTarget() {
 		List<LivingEntity> targets = new ArrayList<>();
 		
-		// Add players if enabled
 		if (targetPlayers.getValue()) {
 			targets.addAll(PlayerHelper.getPlayersInRange(targetRange.getValue()));
 		}
 		
-		// Add mobs if enabled
 		if (targetMobs.getValue()) {
 			List<LivingEntity> mobs = PlayerHelper.getLivingEntitiesInRange(targetRange.getValue());
 			for (LivingEntity mob : mobs) {
-				// Add all living entities that aren't already in the list
 				if (!targets.contains(mob) && !(mob instanceof Player)) {
 					targets.add(mob);
 				}
@@ -354,6 +472,7 @@ public class AutoCrystal extends Module {
 		targets.removeIf(entity -> {
 			if (entity instanceof Player player) {
 				if (ignoreFriends.getValue() && PlayerHelper.isFriend(player)) return true;
+				if (holeCheck.getValue() && isInSafeHole(player)) return true;
 			}
 			if (entity.isDeadOrDying()) return true;
 			return false;
@@ -364,14 +483,39 @@ public class AutoCrystal extends Module {
 			return;
 		}
 		
-		// Find best target (closest + lowest health)
+		// Smart target selection
 		currentTarget = targets.stream()
-			.min(Comparator.comparingDouble(e -> {
-				double distWeight = PlayerHelper.getDistanceTo(e) * 0.1;
-				double healthWeight = e.getHealth() * 0.5;
-				return distWeight + healthWeight;
-			}))
+			.min(Comparator.comparingDouble(this::getTargetPriority))
 			.orElse(null);
+	}
+
+	private double getTargetPriority(LivingEntity entity) {
+		double distWeight = PlayerHelper.getDistanceTo(entity) * 0.1;
+		double healthWeight = entity.getHealth() * 0.3;
+		
+		if (smartTarget.getValue() && entity instanceof Player player) {
+			// Prioritize low armor targets
+			int armor = player.getArmorValue();
+			double armorWeight = armor * 0.2;
+			return distWeight + healthWeight + armorWeight;
+		}
+		
+		return distWeight + healthWeight;
+	}
+
+	private boolean isInSafeHole(Player player) {
+		BlockPos pos = player.blockPosition();
+		
+		// Check if player is in a hole (bedrock/obsidian on all sides)
+		for (Direction dir : Direction.Plane.HORIZONTAL) {
+			BlockPos checkPos = pos.relative(dir);
+			if (!BlockHelper.isBlock(checkPos, net.minecraft.world.level.block.Blocks.BEDROCK) &&
+				!BlockHelper.isBlock(checkPos, net.minecraft.world.level.block.Blocks.OBSIDIAN)) {
+				return false;
+			}
+		}
+		
+		return true;
 	}
 
 	private void breakCrystals() {
@@ -401,13 +545,13 @@ public class AutoCrystal extends Module {
 		}
 	}
 
-	private void placeCrystal() {
-		if (!CrystalHelper.hasCrystals()) return;
+	private boolean placeCrystal() {
+		if (!CrystalHelper.hasCrystals()) return false;
 		
 		// Handle auto switch
 		if (autoSwitch.getValue() && !InventoryHelper.isHolding(Items.END_CRYSTAL)) {
 			int crystalSlot = InventoryHelper.findItemInHotbar(Items.END_CRYSTAL);
-			if (crystalSlot == -1) return;
+			if (crystalSlot == -1) return false;
 			
 			if (previousSlot == -1) {
 				previousSlot = InventoryHelper.getSelectedSlot();
@@ -415,30 +559,33 @@ public class AutoCrystal extends Module {
 			InventoryHelper.switchToSlot(crystalSlot);
 		}
 		
-		if (!InventoryHelper.isHolding(Items.END_CRYSTAL)) return;
+		if (!InventoryHelper.isHolding(Items.END_CRYSTAL)) return false;
 		
 		// Check inhibit
 		if (inhibit.getValue() && lastCrystal != null && !lastCrystal.isRemoved()) {
 			double dist = lastCrystal.distanceTo(currentTarget);
-			if (dist < 4.0) return;
+			if (dist < 4.0) return false;
 		}
 		
 		// Find best position
 		BlockPos bestPos = findBestCrystalPosition();
-		if (bestPos == null) return;
+		if (bestPos == null) return false;
 		
 		// Place crystal
 		if (placeCrystalAt(bestPos)) {
 			placeTimer.reset();
 			lastPlacePos = bestPos;
+			crystalsPlaced++;
 			
 			// Switch back if enabled
-			if (switchBack.getValue() && previousSlot != -1 && 
-				InventoryHelper.getSelectedSlot() != previousSlot) {
-				InventoryHelper.switchToSlot(previousSlot);
-				previousSlot = -1;
+			if (switchBack.getValue() && previousSlot != -1) {
+				switchBackTimer.reset();
 			}
+			
+			return true;
 		}
+		
+		return false;
 	}
 
 	private BlockPos findBestCrystalPosition() {
@@ -446,8 +593,23 @@ public class AutoCrystal extends Module {
 		if (validPositions.isEmpty()) return null;
 		
 		Vec3 targetPos = currentTarget.position();
+		
+		// Face place check
+		boolean shouldFacePlace = facePlace.getValue() && 
+			currentTarget.getHealth() <= facePlaceHealth.getValue();
+		
+		if (shouldFacePlace) {
+			BlockPos feetPos = currentTarget.blockPosition().below();
+			if (validPositions.contains(feetPos)) {
+				return feetPos;
+			}
+		}
+		
+		// Predict movement
 		if (predictMovement.getValue()) {
-			targetPos = MovementHelper.predictPosition(3);
+			Vec3 velocity = currentTarget.getDeltaMovement();
+			int ticks = (int) predictTicks.getValue().doubleValue();
+			targetPos = targetPos.add(velocity.scale(ticks));
 		}
 		
 		BlockPos bestPos = null;
@@ -474,7 +636,12 @@ public class AutoCrystal extends Module {
 			if (ratio < minDamageRatio.getValue()) continue;
 			
 			// Calculate score based on mode
-			float score = calculatePlaceScore(pos, targetDamage, selfDamage);
+			float score = calculatePlaceScore(pos, targetPos, targetDamage, selfDamage);
+			
+			// Add humanization randomness
+			if (humanize.getValue()) {
+				score += (float) (Math.random() * 0.5 - 0.25);
+			}
 			
 			if (score > bestScore) {
 				bestScore = score;
@@ -485,16 +652,22 @@ public class AutoCrystal extends Module {
 		return bestPos;
 	}
 
-	private float calculatePlaceScore(BlockPos pos, float targetDamage, float selfDamage) {
+	private float calculatePlaceScore(BlockPos pos, Vec3 targetPos, float targetDamage, float selfDamage) {
 		String mode = placeMode.getValue();
+		double distance = Math.sqrt(pos.distToCenterSqr(targetPos));
 		
 		switch (mode) {
 			case "Damage":
 				return targetDamage;
 			case "Safe":
 				return targetDamage - (selfDamage * 2);
+			case "Smart":
+				// Balance between damage and safety
+				float damageScore = targetDamage * 2;
+				float safetyScore = Math.max(0, maxSelfDamage.getValue().floatValue() - selfDamage);
+				float distScore = (float) (10.0 / Math.max(1, distance));
+				return damageScore + safetyScore + distScore;
 			default: // Normal
-				double distance = Math.sqrt(pos.distToCenterSqr(currentTarget.position()));
 				return targetDamage - selfDamage + (float) (10.0 / Math.max(1, distance));
 		}
 	}
@@ -505,6 +678,12 @@ public class AutoCrystal extends Module {
 		// Apply rotation
 		if (!rotationMode.getValue().equals("None")) {
 			float[] rotation = RotationHelper.getRotationToBlock(pos.above());
+			
+			// Add humanization to rotations
+			if (humanize.getValue()) {
+				rotation[0] += (float) (Math.random() * 2 - 1);
+				rotation[1] += (float) (Math.random() * 2 - 1);
+			}
 			
 			if (rotationMode.getValue().equals("Client")) {
 				mc.player.setYRot(rotation[0]);
@@ -526,7 +705,9 @@ public class AutoCrystal extends Module {
 			0
 		));
 		
-		mc.player.swing(InteractionHand.MAIN_HAND);
+		if (!ghostMode.getValue() || Math.random() > 0.3) {
+			mc.player.swing(InteractionHand.MAIN_HAND);
+		}
 		
 		return true;
 	}
@@ -537,6 +718,11 @@ public class AutoCrystal extends Module {
 		// Apply rotation
 		if (!rotationMode.getValue().equals("None")) {
 			float[] rotation = RotationHelper.getRotationToEntity(crystal);
+			
+			if (humanize.getValue()) {
+				rotation[0] += (float) (Math.random() * 1.5 - 0.75);
+				rotation[1] += (float) (Math.random() * 1.5 - 0.75);
+			}
 			
 			if (rotationMode.getValue().equals("Client")) {
 				mc.player.setYRot(rotation[0]);
@@ -550,6 +736,8 @@ public class AutoCrystal extends Module {
 			mc.player.isShiftKeyDown()
 		));
 		
-		mc.player.swing(InteractionHand.MAIN_HAND);
+		if (!ghostMode.getValue() || Math.random() > 0.2) {
+			mc.player.swing(InteractionHand.MAIN_HAND);
+		}
 	}
 }

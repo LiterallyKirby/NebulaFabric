@@ -3,7 +3,19 @@
 	"package": "com.kirby.nebula.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
-		"ExampleClientMixin"
+		"ExampleClientMixin",
+		"ReachMixin",
+		"HitboxMixin",
+		"FastPlaceMixin",
+		"SafeWalkMixin",
+		"VelocityMixin",
+		"MouseMixin",
+		"AttackCooldownMixin",
+		"CameraMixin",
+		"GameRendererMixin",
+		"ProjectileMixin",
+		"MultiPlayerGameModeMixin",
+		"EntityMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
