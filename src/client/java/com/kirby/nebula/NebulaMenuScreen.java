@@ -1,5 +1,8 @@
 package com.kirby.nebula;
 
+import com.kirby.nebula.module.Category;
+import com.kirby.nebula.module.Module;
+import com.kirby.nebula.module.ModuleManager;
 import com.kirby.nebula.ui.*;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -12,202 +15,198 @@ import java.util.List;
 
 @Environment(EnvType.CLIENT)
 public class NebulaMenuScreen extends Screen {
-	private static final int PANEL_WIDTH = 600;
-	private static final int PANEL_HEIGHT = 400;
-	private static final int SIDEBAR_WIDTH = 150;
-	private static final int CORNER_RADIUS = 8;
+	// UI Constants - Deep Purple Theme
+	private static final int PANEL_WIDTH = 650;
+	private static final int PANEL_HEIGHT = 450;
+	private static final int SIDEBAR_WIDTH = 180;
+	private static final int CORNER_RADIUS = 10;
+	
+	// Deep Purple Color Scheme
+	private static final int BG_MAIN = 0xE0181025;          // Dark purple background
+	private static final int BG_SIDEBAR = 0xE00F0820;       // Darker purple sidebar
+	private static final int ACCENT_PRIMARY = 0xFF6B46C1;   // Medium purple
+	private static final int ACCENT_SECONDARY = 0xFF8B5CF6; // Light purple
+	private static final int ACCENT_HIGHLIGHT = 0xFFA78BFA; // Lighter purple
+	private static final int TEXT_PRIMARY = 0xFFFFFFFF;
+	private static final int TEXT_SECONDARY = 0xFFC4B5FD;
+	private static final int TEXT_MUTED = 0xFF9F7AEA;
 	
 	private float animationProgress = 0.0f;
 	private final List<ModButton> modButtons = new ArrayList<>();
-	private final List<TabButton> tabButtons = new ArrayList<>();
-	private TabType currentTab = TabType.COMBAT;
+	private final List<CategoryTab> categoryTabs = new ArrayList<>();
+	private Category currentCategory = Category.COMBAT;
 
-	// Custom fonts
 	private CustomFontRenderer titleFont;
 	private CustomFontRenderer buttonFont;
 
 	public NebulaMenuScreen() {
-		super(Component.literal("Nebula Mod Menu"));
+		super(Component.literal("Nebula Client"));
 	}
 
 	@Override
 	protected void init() {
 		super.init();
-
-		// Load custom fonts (fallback to default if loading fails)
 		loadFonts();
-		
-		// Initialize UI components
-		initializeTabs();
+		initializeCategoryTabs();
 		refreshModButtons();
 	}
 
 	private void loadFonts() {
 		try {
-			titleFont = CustomFontRenderer.create("/assets/nebula/fonts/title.ttf", 20f);
+			titleFont = CustomFontRenderer.create("/assets/nebula/fonts/title.ttf", 24f);
 		} catch (Exception e) {
-			Nebula.LOGGER.warn("Failed to load title font: " + e.getMessage());
+			Nebula.LOGGER.warn("Failed to load title font, using default");
 			titleFont = null;
 		}
 
 		try {
-			buttonFont = CustomFontRenderer.create("/assets/nebula/fonts/button.ttf", 14f);
+			buttonFont = CustomFontRenderer.create("/assets/nebula/fonts/button.ttf", 15f);
 		} catch (Exception e) {
-			Nebula.LOGGER.warn("Failed to load button font: " + e.getMessage());
+			Nebula.LOGGER.warn("Failed to load button font, using default");
 			buttonFont = null;
 		}
 	}
 
-	private void initializeTabs() {
-		tabButtons.clear();
-		tabButtons.add(new TabButton(10, 60, SIDEBAR_WIDTH - 20, 35, 
-			Component.literal("Combat"), TabType.COMBAT));
-		tabButtons.add(new TabButton(10, 100, SIDEBAR_WIDTH - 20, 35, 
-			Component.literal("Rendering"), TabType.RENDERING));
-		tabButtons.add(new TabButton(10, 140, SIDEBAR_WIDTH - 20, 35, 
-			Component.literal("World"), TabType.WORLD));
+	private void initializeCategoryTabs() {
+		categoryTabs.clear();
+		int startY = 80;
+		int spacing = 45;
+		int index = 0;
+		
+		// Automatically create tabs for all categories
+		for (Category category : Category.values()) {
+			categoryTabs.add(new CategoryTab(
+				15, 
+				startY + (index * spacing), 
+				SIDEBAR_WIDTH - 30, 
+				38,
+				Component.literal(category.getDisplayName()),
+				category
+			));
+			index++;
+		}
 	}
 
 	private void refreshModButtons() {
 		modButtons.clear();
-		int startX = SIDEBAR_WIDTH + 20;
-		int startY = 60;
-		int buttonWidth = PANEL_WIDTH - SIDEBAR_WIDTH - 40;
-
-		switch (currentTab) {
-			case COMBAT:
-				addCombatMods(startX, startY, buttonWidth);
-				break;
-			case RENDERING:
-				addRenderingMods(startX, startY, buttonWidth);
-				break;
-			case WORLD:
-				addWorldMods(startX, startY, buttonWidth);
-				break;
+		int startX = SIDEBAR_WIDTH + 25;
+		int startY = 70;
+		int buttonWidth = PANEL_WIDTH - SIDEBAR_WIDTH - 50;
+		int buttonHeight = 35;
+		int spacing = 8;
+		
+		// Get modules for current category from ModuleManager
+		List<Module> modules = ModuleManager.getInstance().getModulesByCategory(currentCategory);
+		
+		for (int i = 0; i < modules.size(); i++) {
+			Module module = modules.get(i);
+			modButtons.add(new ModButton(
+				startX,
+				startY + (i * (buttonHeight + spacing)),
+				buttonWidth,
+				buttonHeight,
+				Component.literal(module.getName()),
+				module.getDescription(),
+				module.isEnabled(),
+				() -> module.toggle()
+			));
 		}
-	}
-
-	private void addCombatMods(int startX, int startY, int buttonWidth) {
-		modButtons.add(new ModButton(startX, startY, buttonWidth, 30,
-			Component.literal("Killaura"), false,
-			() -> Nebula.LOGGER.info("Killaura toggled!")));
-		modButtons.add(new ModButton(startX, startY + 38, buttonWidth, 30,
-			Component.literal("Velocity"), false,
-			() -> Nebula.LOGGER.info("Velocity toggled!")));
-		modButtons.add(new ModButton(startX, startY + 76, buttonWidth, 30,
-			Component.literal("Auto Totem"), false,
-			() -> Nebula.LOGGER.info("Auto Totem toggled!")));
-		modButtons.add(new ModButton(startX, startY + 114, buttonWidth, 30,
-			Component.literal("Criticals"), false,
-			() -> Nebula.LOGGER.info("Criticals toggled!")));
-	}
-
-	private void addRenderingMods(int startX, int startY, int buttonWidth) {
-		modButtons.add(new ModButton(startX, startY, buttonWidth, 30,
-			Component.literal("ESP"), false,
-			() -> Nebula.LOGGER.info("ESP toggled!")));
-		modButtons.add(new ModButton(startX, startY + 38, buttonWidth, 30,
-			Component.literal("Tracers"), false,
-			() -> Nebula.LOGGER.info("Tracers toggled!")));
-		modButtons.add(new ModButton(startX, startY + 76, buttonWidth, 30,
-			Component.literal("Nametags"), false,
-			() -> Nebula.LOGGER.info("Nametags toggled!")));
-		modButtons.add(new ModButton(startX, startY + 114, buttonWidth, 30,
-			Component.literal("Fullbright"), false,
-			() -> Nebula.LOGGER.info("Fullbright toggled!")));
-	}
-
-	private void addWorldMods(int startX, int startY, int buttonWidth) {
-		modButtons.add(new ModButton(startX, startY, buttonWidth, 30,
-			Component.literal("Xray"), false,
-			() -> Nebula.LOGGER.info("Xray toggled!")));
-		modButtons.add(new ModButton(startX, startY + 38, buttonWidth, 30,
-			Component.literal("Nuker"), false,
-			() -> Nebula.LOGGER.info("Nuker toggled!")));
-		modButtons.add(new ModButton(startX, startY + 76, buttonWidth, 30,
-			Component.literal("Auto Mine"), false,
-			() -> Nebula.LOGGER.info("Auto Mine toggled!")));
-		modButtons.add(new ModButton(startX, startY + 114, buttonWidth, 30,
-			Component.literal("Timer"), false,
-			() -> Nebula.LOGGER.info("Timer toggled!")));
 	}
 
 	@Override
 	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		renderBackground(graphics, 0, 0, partialTick);
+		renderBackground(graphics, mouseX, mouseY, partialTick);
 
-		// Animate panel sliding in
+		// Smooth animation
 		if (animationProgress < 1.0f) {
-			animationProgress = Math.min(1.0f, animationProgress + partialTick * 0.1f);
+			animationProgress = Math.min(1.0f, animationProgress + partialTick * 0.08f);
 		}
 
 		int panelX = (this.width - PANEL_WIDTH) / 2;
 		int panelY = (this.height - PANEL_HEIGHT) / 2;
-		int animatedY = (int) (panelY - (50 * (1.0f - animationProgress)));
+		
+		// Slide and fade animation
+		int animatedY = (int) (panelY - (60 * (1.0f - animationProgress)));
+		int alpha = (int) (224 * animationProgress);
 
-		// Draw panel backgrounds
-		renderPanelBackground(graphics, panelX, animatedY);
-		
-		// Draw title
-		renderTitle(graphics, panelX, animatedY);
-		
-		// Draw tab title
-		renderTabTitle(graphics, panelX, animatedY);
-		
-		// Draw footer text
-		graphics.drawCenteredString(this.font, "ESC to close", panelX + SIDEBAR_WIDTH / 2,
-			animatedY + PANEL_HEIGHT - 20, 0x808080);
-
-		// Render all buttons
+		// Draw main UI
+		renderPanel(graphics, panelX, animatedY, alpha);
+		renderHeader(graphics, panelX, animatedY);
+		renderCategoryTitle(graphics, panelX, animatedY);
+		renderFooter(graphics, panelX, animatedY);
 		renderButtons(graphics, panelX, animatedY, mouseX, mouseY);
 	}
 
-	private void renderPanelBackground(GuiGraphics graphics, int panelX, int animatedY) {
-		// Main panel
+	private void renderPanel(GuiGraphics graphics, int panelX, int animatedY, int alpha) {
+		// Main panel with adjusted alpha
+		int bgMain = (alpha << 24) | (BG_MAIN & 0x00FFFFFF);
+		int bgSidebar = (alpha << 24) | (BG_SIDEBAR & 0x00FFFFFF);
+		
 		UIHelper.drawRoundedRect(graphics, panelX, animatedY, PANEL_WIDTH, PANEL_HEIGHT, 
-			CORNER_RADIUS, 0xE0202020);
+			CORNER_RADIUS, bgMain);
 		
 		// Sidebar
 		UIHelper.drawRoundedRect(graphics, panelX, animatedY, SIDEBAR_WIDTH, PANEL_HEIGHT, 
-			CORNER_RADIUS, 0xE0181818);
+			CORNER_RADIUS, bgSidebar);
 		
-		// Sidebar border
-		graphics.fill(panelX + SIDEBAR_WIDTH, animatedY + CORNER_RADIUS,
-			panelX + SIDEBAR_WIDTH + 2, animatedY + PANEL_HEIGHT - CORNER_RADIUS, 0xFF00AAFF);
-
-		// Top accent
-		UIHelper.drawRoundedRect(graphics, panelX, animatedY, PANEL_WIDTH, 3, CORNER_RADIUS, 0xFF00AAFF);
+		// Accent borders
+		UIHelper.drawRoundedRect(graphics, panelX, animatedY, PANEL_WIDTH, 3, 
+			CORNER_RADIUS, ACCENT_SECONDARY);
+		
+		graphics.fill(panelX + SIDEBAR_WIDTH, animatedY + 10,
+			panelX + SIDEBAR_WIDTH + 2, animatedY + PANEL_HEIGHT - 10, ACCENT_PRIMARY);
+		
+		// Glow effect on top
+		UIHelper.drawGradientRect(graphics, panelX, animatedY + 3, PANEL_WIDTH, 30,
+			0x40A78BFA, 0x00A78BFA);
 	}
 
-	private void renderTitle(GuiGraphics graphics, int panelX, int animatedY) {
+	private void renderHeader(GuiGraphics graphics, int panelX, int animatedY) {
 		if (titleFont != null) {
-			int titleY = animatedY + 18;
-			titleFont.drawCenteredString(graphics, "NEBULA", panelX + SIDEBAR_WIDTH / 2, titleY, 0xFF00AAFF);
-			titleFont.drawCenteredString(graphics, "CLIENT", panelX + SIDEBAR_WIDTH / 2, titleY + 20, 0xFF00AAFF);
+			titleFont.drawCenteredString(graphics, "NEBULA", 
+				panelX + SIDEBAR_WIDTH / 2, animatedY + 22, ACCENT_HIGHLIGHT);
+			titleFont.drawCenteredString(graphics, "CLIENT", 
+				panelX + SIDEBAR_WIDTH / 2, animatedY + 46, TEXT_SECONDARY);
 		} else {
-			graphics.drawCenteredString(this.font, "NEBULA", panelX + SIDEBAR_WIDTH / 2, animatedY + 20, 0x00AAFF);
-			graphics.drawCenteredString(this.font, "CLIENT", panelX + SIDEBAR_WIDTH / 2, animatedY + 32, 0x00AAFF);
+			graphics.drawCenteredString(this.font, "§l§nNEBULA", 
+				panelX + SIDEBAR_WIDTH / 2, animatedY + 22, ACCENT_HIGHLIGHT);
+			graphics.drawCenteredString(this.font, "§lCLIENT", 
+				panelX + SIDEBAR_WIDTH / 2, animatedY + 40, TEXT_SECONDARY);
 		}
 	}
 
-	private void renderTabTitle(GuiGraphics graphics, int panelX, int animatedY) {
-		String tabTitle = currentTab.toString() + " MODS";
+	private void renderCategoryTitle(GuiGraphics graphics, int panelX, int animatedY) {
+		String title = currentCategory.getDisplayName().toUpperCase();
+		int moduleCount = ModuleManager.getInstance().getModulesByCategory(currentCategory).size();
+		String subtitle = moduleCount + " module" + (moduleCount != 1 ? "s" : "");
+		
 		if (buttonFont != null) {
-			buttonFont.drawString(graphics, tabTitle, panelX + SIDEBAR_WIDTH + 20, 
-				animatedY + 25, 0xFFFFFFFF);
+			buttonFont.drawString(graphics, title, 
+				panelX + SIDEBAR_WIDTH + 25, animatedY + 25, TEXT_PRIMARY);
+			buttonFont.drawString(graphics, subtitle, 
+				panelX + SIDEBAR_WIDTH + 25, animatedY + 45, TEXT_MUTED);
 		} else {
-			graphics.drawString(this.font, tabTitle, panelX + SIDEBAR_WIDTH + 20, 
-				animatedY + 25, 0xFFFFFF);
+			graphics.drawString(this.font, "§l" + title, 
+				panelX + SIDEBAR_WIDTH + 25, animatedY + 25, TEXT_PRIMARY);
+			graphics.drawString(this.font, subtitle, 
+				panelX + SIDEBAR_WIDTH + 25, animatedY + 40, TEXT_MUTED);
 		}
+	}
+
+	private void renderFooter(GuiGraphics graphics, int panelX, int animatedY) {
+		String footerText = "Press ESC or Right Shift to close";
+		graphics.drawCenteredString(this.font, footerText, 
+			panelX + SIDEBAR_WIDTH / 2, animatedY + PANEL_HEIGHT - 25, TEXT_MUTED);
 	}
 
 	private void renderButtons(GuiGraphics graphics, int panelX, int animatedY, int mouseX, int mouseY) {
-		// Render tab buttons
-		for (TabButton tab : tabButtons) {
-			tab.render(graphics, panelX, animatedY, mouseX, mouseY, currentTab, this.font, buttonFont);
+		// Render category tabs
+		for (CategoryTab tab : categoryTabs) {
+			tab.render(graphics, panelX, animatedY, mouseX, mouseY, 
+				currentCategory, this.font, buttonFont);
 		}
 
-		// Render mod buttons
+		// Render module buttons
 		for (ModButton btn : modButtons) {
 			btn.render(graphics, panelX, animatedY, mouseX, mouseY, this.font, buttonFont);
 		}
@@ -218,20 +217,20 @@ public class NebulaMenuScreen extends Screen {
 		if (button == 0) {
 			int panelX = (this.width - PANEL_WIDTH) / 2;
 			int panelY = (this.height - PANEL_HEIGHT) / 2;
-			int animatedY = (int) (panelY - (50 * (1.0f - animationProgress)));
+			int animatedY = (int) (panelY - (60 * (1.0f - animationProgress)));
 
-			// Check tab buttons
-			for (TabButton tab : tabButtons) {
+			// Check category tabs
+			for (CategoryTab tab : categoryTabs) {
 				if (tab.isMouseOver(panelX, animatedY, (int) mouseX, (int) mouseY)) {
-					if (currentTab != tab.getType()) {
-						currentTab = tab.getType();
+					if (currentCategory != tab.getCategory()) {
+						currentCategory = tab.getCategory();
 						refreshModButtons();
 					}
 					return true;
 				}
 			}
 
-			// Check mod buttons
+			// Check module buttons
 			for (ModButton btn : modButtons) {
 				if (btn.isMouseOver(panelX, animatedY, (int) mouseX, (int) mouseY)) {
 					btn.toggle();
@@ -259,10 +258,7 @@ public class NebulaMenuScreen extends Screen {
 	@Override
 	public void removed() {
 		super.removed();
-		// Clean up font textures
-		if (titleFont != null)
-			titleFont.cleanup();
-		if (buttonFont != null)
-			buttonFont.cleanup();
+		if (titleFont != null) titleFont.cleanup();
+		if (buttonFont != null) buttonFont.cleanup();
 	}
 }

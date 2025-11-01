@@ -1,22 +1,34 @@
 package com.kirby.nebula.module;
 
-import com.kirby.nebula.module.modules.combat.*;
-import com.kirby.nebula.module.modules.rendering.*;
-import com.kirby.nebula.module.modules.world.*;
+//import com.kirby.nebula.module.modules.combat.*;
+//import com.kirby.nebula.module.modules.rendering.*;
+//import com.kirby.nebula.module.modules.world.*;
+import com.kirby.nebula.module.modules.movement.*;
+//import com.kirby.nebula.module.modules.player.*;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Manages all modules in the client
+ * To add a new module:
+ * 1. Create a new Module class extending Module
+ * 2. Add it to the appropriate register method
+ * 3. That's it! The UI will automatically display it in the correct category
+ */
 public class ModuleManager {
 	private static ModuleManager INSTANCE;
 	private final List<Module> modules = new ArrayList<>();
 
 	private ModuleManager() {
-		// Register all modules here
+		// Register all modules
 		registerCombatModules();
 		registerRenderingModules();
 		registerWorldModules();
+		registerMovementModules();
+		registerPlayerModules();
+		// Add more register methods as needed
 	}
 
 	public static ModuleManager getInstance() {
@@ -26,26 +38,30 @@ public class ModuleManager {
 		return INSTANCE;
 	}
 
+	// === MODULE REGISTRATION ===
+	// Simply add new modules to these methods to include them in the client
+
 	private void registerCombatModules() {
-		modules.add(new KillauraModule());
-		modules.add(new VelocityModule());
-		modules.add(new AutoTotemModule());
-		modules.add(new CriticalsModule());
+
 	}
 
 	private void registerRenderingModules() {
-		modules.add(new ESPModule());
-		modules.add(new TracersModule());
-		modules.add(new NametagsModule());
-		modules.add(new FullbrightModule());
+
 	}
 
 	private void registerWorldModules() {
-		modules.add(new XrayModule());
-		modules.add(new NukerModule());
-		modules.add(new AutoMineModule());
-		modules.add(new TimerModule());
+
 	}
+
+	private void registerMovementModules() {
+		modules.add(new ToggleSprint());
+	}
+
+	private void registerPlayerModules() {
+
+	}
+
+	// === PUBLIC API ===
 
 	/**
 	 * Get all registered modules
@@ -59,18 +75,18 @@ public class ModuleManager {
 	 */
 	public List<Module> getModulesByCategory(Category category) {
 		return modules.stream()
-			.filter(m -> m.getCategory() == category)
-			.collect(Collectors.toList());
+				.filter(m -> m.getCategory() == category)
+				.collect(Collectors.toList());
 	}
 
 	/**
-	 * Get a module by name
+	 * Get a module by name (case insensitive)
 	 */
 	public Module getModuleByName(String name) {
 		return modules.stream()
-			.filter(m -> m.getName().equalsIgnoreCase(name))
-			.findFirst()
-			.orElse(null);
+				.filter(m -> m.getName().equalsIgnoreCase(name))
+				.findFirst()
+				.orElse(null);
 	}
 
 	/**
@@ -78,8 +94,38 @@ public class ModuleManager {
 	 */
 	public List<Module> getEnabledModules() {
 		return modules.stream()
-			.filter(Module::isEnabled)
-			.collect(Collectors.toList());
+				.filter(Module::isEnabled)
+				.collect(Collectors.toList());
+	}
+
+	/**
+	 * Enable a module by name
+	 */
+	public void enableModule(String name) {
+		Module module = getModuleByName(name);
+		if (module != null) {
+			module.setEnabled(true);
+		}
+	}
+
+	/**
+	 * Disable a module by name
+	 */
+	public void disableModule(String name) {
+		Module module = getModuleByName(name);
+		if (module != null) {
+			module.setEnabled(false);
+		}
+	}
+
+	/**
+	 * Toggle a module by name
+	 */
+	public void toggleModule(String name) {
+		Module module = getModuleByName(name);
+		if (module != null) {
+			module.toggle();
+		}
 	}
 
 	/**
@@ -87,7 +133,12 @@ public class ModuleManager {
 	 */
 	public void onTick() {
 		for (Module module : getEnabledModules()) {
-			module.onTick();
+			try {
+				module.onTick();
+			} catch (Exception e) {
+				// Log but don't crash
+				System.err.println("Error in module " + module.getName() + ": " + e.getMessage());
+			}
 		}
 	}
 
@@ -96,7 +147,13 @@ public class ModuleManager {
 	 */
 	public void onRender() {
 		for (Module module : getEnabledModules()) {
-			module.onRender();
+			try {
+				module.onRender();
+			} catch (Exception e) {
+				// Log but don't crash
+				System.err.println(
+						"Error rendering module " + module.getName() + ": " + e.getMessage());
+			}
 		}
 	}
 
@@ -105,8 +162,19 @@ public class ModuleManager {
 	 */
 	public void onKeyPress(int keyCode) {
 		for (Module module : modules) {
-			if (module.getKeyBind() == keyCode) {
+			if (module.getKeyBind() == keyCode && keyCode != 0) {
 				module.toggle();
+			}
+		}
+	}
+
+	/**
+	 * Disable all modules (useful for cleanup)
+	 */
+	public void disableAll() {
+		for (Module module : modules) {
+			if (module.isEnabled()) {
+				module.setEnabled(false);
 			}
 		}
 	}
