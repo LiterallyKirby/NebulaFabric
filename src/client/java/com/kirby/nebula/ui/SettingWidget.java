@@ -213,4 +213,8 @@ public class SettingWidget {
 		int y = animatedY + relY;
 		return mouseX >= x && mouseY >= y && mouseX < x + width && mouseY < y + height;
 	}
+
+	public int getRelY() {
+		return relY;
+	}
 }

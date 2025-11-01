@@ -8,6 +8,7 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +18,9 @@ public class ModuleOptionsScreen extends Screen {
 	private static final int PANEL_WIDTH = 500;
 	private static final int PANEL_HEIGHT = 400;
 	private static final int CORNER_RADIUS = 10;
+	private static final int HEADER_HEIGHT = 60;
+	private static final int FOOTER_HEIGHT = 40;
+	private static final int CONTENT_HEIGHT = PANEL_HEIGHT - HEADER_HEIGHT - FOOTER_HEIGHT;
 
 	private static final int BG_MAIN = 0xF00A0A0F;
 	private static final int BG_HEADER = 0xF0050508;
@@ -34,6 +38,11 @@ public class ModuleOptionsScreen extends Screen {
 	private CustomFontRenderer titleFont;
 	private CustomFontRenderer settingFont;
 
+	// Scrolling variables
+	private float scrollOffset = 0.0f;
+	private float maxScroll = 0.0f;
+	private boolean isDragging = false;
+
 	public ModuleOptionsScreen(Screen parent, Module module) {
 		super(Component.literal(module.getName() + " Options"));
 		this.parent = parent;
@@ -45,6 +54,7 @@ public class ModuleOptionsScreen extends Screen {
 		super.init();
 		loadFonts();
 		createSettingWidgets();
+		calculateMaxScroll();
 	}
 
 	private void loadFonts() {
@@ -63,7 +73,7 @@ public class ModuleOptionsScreen extends Screen {
 
 	private void createSettingWidgets() {
 		settingWidgets.clear();
-		int startY = 80;
+		int startY = 0; // Start from 0 since we'll offset by scroll
 		int spacing = 55;
 
 		for (int i = 0; i < module.getSettings().size(); i++) {
@@ -75,6 +85,21 @@ public class ModuleOptionsScreen extends Screen {
 					45,
 					setting));
 		}
+	}
+
+	private void calculateMaxScroll() {
+		if (settingWidgets.isEmpty()) {
+			maxScroll = 0;
+			return;
+		}
+
+		// Calculate total content height
+		int lastWidgetIndex = settingWidgets.size() - 1;
+		SettingWidget lastWidget = settingWidgets.get(lastWidgetIndex);
+		int totalContentHeight = lastWidget.getRelY() + 45 + 20; // Last widget Y + height + padding
+
+		// Max scroll is the amount content exceeds visible area
+		maxScroll = Math.max(0, totalContentHeight - CONTENT_HEIGHT);
 	}
 
 	@Override
@@ -93,8 +118,28 @@ public class ModuleOptionsScreen extends Screen {
 
 		renderPanel(graphics, panelX, animatedY, alpha);
 		renderHeader(graphics, panelX, animatedY);
+		
+		// Enable scissor test for content area
+		enableScissor(panelX, animatedY + HEADER_HEIGHT, PANEL_WIDTH, CONTENT_HEIGHT);
 		renderSettings(graphics, panelX, animatedY, mouseX, mouseY);
+		disableScissor();
+		
+		renderScrollbar(graphics, panelX, animatedY);
 		renderFooter(graphics, panelX, animatedY);
+	}
+
+	private void enableScissor(int x, int y, int width, int height) {
+		double scale = minecraft.getWindow().getGuiScale();
+		int scaledX = (int) (x * scale);
+		int scaledY = (int) (minecraft.getWindow().getHeight() - (y + height) * scale);
+		int scaledWidth = (int) (width * scale);
+		int scaledHeight = (int) (height * scale);
+		
+		com.mojang.blaze3d.systems.RenderSystem.enableScissor(scaledX, scaledY, scaledWidth, scaledHeight);
+	}
+
+	private void disableScissor() {
+		com.mojang.blaze3d.systems.RenderSystem.disableScissor();
 	}
 
 	private void renderPanel(GuiGraphics graphics, int panelX, int animatedY, int alpha) {
@@ -134,6 +179,7 @@ public class ModuleOptionsScreen extends Screen {
 	@Override
 	public boolean mouseReleased(double mouseX, double mouseY, int button) {
 		if (button == 0) {
+			isDragging = false;
 			for (SettingWidget widget : settingWidgets) {
 				widget.mouseReleased();
 			}
@@ -142,13 +188,40 @@ public class ModuleOptionsScreen extends Screen {
 	}
 
 	private void renderSettings(GuiGraphics graphics, int panelX, int animatedY, int mouseX, int mouseY) {
+		int contentY = animatedY + HEADER_HEIGHT;
+		int scrolledY = (int) (contentY - scrollOffset);
+
 		for (SettingWidget widget : settingWidgets) {
-			widget.render(graphics, panelX, animatedY, mouseX, mouseY, this.font, settingFont);
+			widget.render(graphics, panelX, scrolledY, mouseX, mouseY, this.font, settingFont);
 		}
+	}
+
+	private void renderScrollbar(GuiGraphics graphics, int panelX, int animatedY) {
+		if (maxScroll <= 0) return; // No scrollbar needed
+
+		int scrollbarX = panelX + PANEL_WIDTH - 8;
+		int scrollbarY = animatedY + HEADER_HEIGHT;
+		int scrollbarHeight = CONTENT_HEIGHT;
+		int scrollbarWidth = 4;
+
+		// Scrollbar background
+		graphics.fill(scrollbarX, scrollbarY, scrollbarX + scrollbarWidth, 
+				scrollbarY + scrollbarHeight, 0x40FFFFFF);
+
+		// Scrollbar handle
+		float scrollPercentage = scrollOffset / maxScroll;
+		int handleHeight = Math.max(20, (int) (scrollbarHeight * (CONTENT_HEIGHT / (float) (CONTENT_HEIGHT + maxScroll))));
+		int handleY = scrollbarY + (int) ((scrollbarHeight - handleHeight) * scrollPercentage);
+
+		graphics.fill(scrollbarX, handleY, scrollbarX + scrollbarWidth, 
+				handleY + handleHeight, ACCENT_PRIMARY);
 	}
 
 	private void renderFooter(GuiGraphics graphics, int panelX, int animatedY) {
 		String footerText = "Press ESC to go back";
+		if (maxScroll > 0) {
+			footerText += " | Scroll to see more";
+		}
 		graphics.drawCenteredString(this.font, footerText,
 				panelX + PANEL_WIDTH / 2, animatedY + PANEL_HEIGHT - 25, TEXT_MUTED);
 	}
@@ -159,9 +232,20 @@ public class ModuleOptionsScreen extends Screen {
 			int panelX = (this.width - PANEL_WIDTH) / 2;
 			int panelY = (this.height - PANEL_HEIGHT) / 2;
 			int animatedY = (int) (panelY - (60 * (1.0f - animationProgress)));
+			int contentY = animatedY + HEADER_HEIGHT;
+			int scrolledY = (int) (contentY - scrollOffset);
+
+			// Check if clicking on scrollbar
+			int scrollbarX = panelX + PANEL_WIDTH - 8;
+			int scrollbarY = animatedY + HEADER_HEIGHT;
+			if (mouseX >= scrollbarX && mouseX <= scrollbarX + 4 &&
+				mouseY >= scrollbarY && mouseY <= scrollbarY + CONTENT_HEIGHT) {
+				isDragging = true;
+				return true;
+			}
 
 			for (SettingWidget widget : settingWidgets) {
-				if (widget.mouseClicked(panelX, animatedY, (int) mouseX, (int) mouseY)) {
+				if (widget.mouseClicked(panelX, scrolledY, (int) mouseX, (int) mouseY)) {
 					return true;
 				}
 			}
@@ -175,12 +259,33 @@ public class ModuleOptionsScreen extends Screen {
 		int panelY = (this.height - PANEL_HEIGHT) / 2;
 		int animatedY = (int) (panelY - (60 * (1.0f - animationProgress)));
 
+		// Handle scrollbar dragging
+		if (isDragging && maxScroll > 0) {
+			int scrollbarY = animatedY + HEADER_HEIGHT;
+			float scrollPercentage = (float) (mouseY - scrollbarY) / CONTENT_HEIGHT;
+			scrollOffset = Mth.clamp(scrollPercentage * maxScroll, 0, maxScroll);
+			return true;
+		}
+
+		int contentY = animatedY + HEADER_HEIGHT;
+		int scrolledY = (int) (contentY - scrollOffset);
+
 		for (SettingWidget widget : settingWidgets) {
-			if (widget.mouseDragged(panelX, animatedY, (int) mouseX, (int) mouseY)) {
+			if (widget.mouseDragged(panelX, scrolledY, (int) mouseX, (int) mouseY)) {
 				return true;
 			}
 		}
 		return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+	}
+
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+		if (maxScroll > 0) {
+			// Scroll by 30 pixels per scroll notch
+			scrollOffset = Mth.clamp(scrollOffset - (float) scrollY * 30, 0, maxScroll);
+			return true;
+		}
+		return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
 	}
 
 	@Override

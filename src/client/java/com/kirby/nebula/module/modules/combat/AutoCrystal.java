@@ -13,8 +13,7 @@ import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.BlockHitResult;
@@ -31,6 +30,7 @@ public class AutoCrystal extends Module {
 	private final NumberSetting targetRange;
 	private final BooleanSetting autoTarget;
 	private final BooleanSetting targetPlayers;
+	private final BooleanSetting targetMobs;
 	private final BooleanSetting ignoreFriends;
 	
 	// Place settings
@@ -64,7 +64,7 @@ public class AutoCrystal extends Module {
 	// State tracking
 	private final TimerHelper placeTimer = new TimerHelper();
 	private final TimerHelper breakTimer = new TimerHelper();
-	private Player currentTarget;
+	private LivingEntity currentTarget;
 	private BlockPos lastPlacePos;
 	private Entity lastCrystal;
 	private int previousSlot = -1;
@@ -93,6 +93,13 @@ public class AutoCrystal extends Module {
 			true
 		);
 		addSetting(targetPlayers);
+		
+		this.targetMobs = new BooleanSetting(
+			"Target Mobs",
+			"Target mobs (for testing)",
+			false
+		);
+		addSetting(targetMobs);
 		
 		this.ignoreFriends = new BooleanSetting(
 			"Ignore Friends",
@@ -269,32 +276,44 @@ public class AutoCrystal extends Module {
 
 	@Override
 	public void onTick() {
-		if (!PlayerHelper.isPlayerValid()) return;
+		if (!PlayerHelper.isPlayerValid()) {
+			com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Player not valid");
+			return;
+		}
 		
 		// Check pause conditions
-		if (shouldPause()) return;
+		if (shouldPause()) {
+			com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Paused");
+			return;
+		}
 		
 		// Update target
 		if (autoTarget.getValue()) {
 			updateTarget();
+			if (currentTarget != null) {
+				com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Target found - " + currentTarget.getName().getString());
+			} else {
+				com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: No target found");
+			}
 		}
 		
 		if (currentTarget == null) return;
 		
 		// Auto break crystals
 		if (autoBreak.getValue() && breakTimer.hasReached((long) breakDelay.getValue().doubleValue())) {
+			com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Attempting to break crystals");
 			breakCrystals();
 		}
 		
 		// Auto place crystals
 		if (autoPlace.getValue() && placeTimer.hasReached((long) placeDelay.getValue().doubleValue())) {
+			com.kirby.nebula.Nebula.LOGGER.info("AutoCrystal: Attempting to place crystal");
 			placeCrystal();
 		}
 	}
 
 	private boolean shouldPause() {
 		if (pauseOnEat.getValue() && mc.player.isUsingItem()) {
-			// Check if the item being used is food (has food component)
 			if (mc.player.getUseItem().has(net.minecraft.core.component.DataComponents.FOOD)) {
 				return true;
 			}
@@ -308,31 +327,48 @@ public class AutoCrystal extends Module {
 	}
 
 	private void updateTarget() {
-		List<Player> players = PlayerHelper.getPlayersInRange(targetRange.getValue());
+		List<LivingEntity> targets = new ArrayList<>();
 		
-		if (players.isEmpty()) {
+		// Add players if enabled
+		if (targetPlayers.getValue()) {
+			targets.addAll(PlayerHelper.getPlayersInRange(targetRange.getValue()));
+		}
+		
+		// Add mobs if enabled
+		if (targetMobs.getValue()) {
+			List<LivingEntity> mobs = PlayerHelper.getLivingEntitiesInRange(targetRange.getValue());
+			for (LivingEntity mob : mobs) {
+				// Add all living entities that aren't already in the list
+				if (!targets.contains(mob) && !(mob instanceof Player)) {
+					targets.add(mob);
+				}
+			}
+		}
+		
+		if (targets.isEmpty()) {
 			currentTarget = null;
 			return;
 		}
 		
-		// Filter players
-		players.removeIf(player -> {
-			if (!targetPlayers.getValue()) return true;
-			if (ignoreFriends.getValue() && PlayerHelper.isFriend(player)) return true;
-			if (player.isDeadOrDying()) return true;
+		// Filter targets
+		targets.removeIf(entity -> {
+			if (entity instanceof Player player) {
+				if (ignoreFriends.getValue() && PlayerHelper.isFriend(player)) return true;
+			}
+			if (entity.isDeadOrDying()) return true;
 			return false;
 		});
 		
-		if (players.isEmpty()) {
+		if (targets.isEmpty()) {
 			currentTarget = null;
 			return;
 		}
 		
-		// Find best target (closest or lowest health)
-		currentTarget = players.stream()
-			.min(Comparator.comparingDouble(p -> {
-				double distWeight = PlayerHelper.getDistanceTo(p) * 0.1;
-				double healthWeight = p.getHealth() * 0.5;
+		// Find best target (closest + lowest health)
+		currentTarget = targets.stream()
+			.min(Comparator.comparingDouble(e -> {
+				double distWeight = PlayerHelper.getDistanceTo(e) * 0.1;
+				double healthWeight = e.getHealth() * 0.5;
 				return distWeight + healthWeight;
 			}))
 			.orElse(null);
@@ -474,7 +510,6 @@ public class AutoCrystal extends Module {
 				mc.player.setYRot(rotation[0]);
 				mc.player.setXRot(rotation[1]);
 			}
-			// Packet rotation handled in packet sending
 		}
 		
 		// Send place packet
