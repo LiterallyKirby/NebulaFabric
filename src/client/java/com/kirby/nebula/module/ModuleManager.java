@@ -1,6 +1,6 @@
 package com.kirby.nebula.module;
 
-//import com.kirby.nebula.module.modules.combat.*;
+import com.kirby.nebula.module.modules.combat.*;
 //import com.kirby.nebula.module.modules.rendering.*;
 //import com.kirby.nebula.module.modules.world.*;
 import com.kirby.nebula.module.modules.movement.*;
@@ -42,7 +42,7 @@ public class ModuleManager {
 	// Simply add new modules to these methods to include them in the client
 
 	private void registerCombatModules() {
-
+		modules.add(new Velocity());
 	}
 
 	private void registerRenderingModules() {

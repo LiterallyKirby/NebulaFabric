@@ -20,17 +20,17 @@ public class NebulaMenuScreen extends Screen {
 	private static final int PANEL_HEIGHT = 450;
 	private static final int SIDEBAR_WIDTH = 180;
 	private static final int CORNER_RADIUS = 10;
-	
+
 	// Deep Purple Color Scheme
-	private static final int BG_MAIN = 0xE0181025;          // Dark purple background
-	private static final int BG_SIDEBAR = 0xE00F0820;       // Darker purple sidebar
-	private static final int ACCENT_PRIMARY = 0xFF6B46C1;   // Medium purple
+	private static final int BG_MAIN = 0xE0181025; // Dark purple background
+	private static final int BG_SIDEBAR = 0xE00F0820; // Darker purple sidebar
+	private static final int ACCENT_PRIMARY = 0xFF6B46C1; // Medium purple
 	private static final int ACCENT_SECONDARY = 0xFF8B5CF6; // Light purple
 	private static final int ACCENT_HIGHLIGHT = 0xFFA78BFA; // Lighter purple
 	private static final int TEXT_PRIMARY = 0xFFFFFFFF;
 	private static final int TEXT_SECONDARY = 0xFFC4B5FD;
 	private static final int TEXT_MUTED = 0xFF9F7AEA;
-	
+
 	private float animationProgress = 0.0f;
 	private final List<ModButton> modButtons = new ArrayList<>();
 	private final List<CategoryTab> categoryTabs = new ArrayList<>();
@@ -72,17 +72,16 @@ public class NebulaMenuScreen extends Screen {
 		int startY = 80;
 		int spacing = 45;
 		int index = 0;
-		
+
 		// Automatically create tabs for all categories
 		for (Category category : Category.values()) {
 			categoryTabs.add(new CategoryTab(
-				15, 
-				startY + (index * spacing), 
-				SIDEBAR_WIDTH - 30, 
-				38,
-				Component.literal(category.getDisplayName()),
-				category
-			));
+					15,
+					startY + (index * spacing),
+					SIDEBAR_WIDTH - 30,
+					38,
+					Component.literal(category.getDisplayName()),
+					category));
 			index++;
 		}
 	}
@@ -94,22 +93,21 @@ public class NebulaMenuScreen extends Screen {
 		int buttonWidth = PANEL_WIDTH - SIDEBAR_WIDTH - 50;
 		int buttonHeight = 35;
 		int spacing = 8;
-		
+
 		// Get modules for current category from ModuleManager
 		List<Module> modules = ModuleManager.getInstance().getModulesByCategory(currentCategory);
-		
+
 		for (int i = 0; i < modules.size(); i++) {
 			Module module = modules.get(i);
 			modButtons.add(new ModButton(
-				startX,
-				startY + (i * (buttonHeight + spacing)),
-				buttonWidth,
-				buttonHeight,
-				Component.literal(module.getName()),
-				module.getDescription(),
-				module.isEnabled(),
-				() -> module.toggle()
-			));
+					startX,
+					startY + (i * (buttonHeight + spacing)),
+					buttonWidth,
+					buttonHeight,
+					Component.literal(module.getName()),
+					module.getDescription(),
+					module.isEnabled(),
+					() -> module.toggle()));
 		}
 	}
 
@@ -124,7 +122,7 @@ public class NebulaMenuScreen extends Screen {
 
 		int panelX = (this.width - PANEL_WIDTH) / 2;
 		int panelY = (this.height - PANEL_HEIGHT) / 2;
-		
+
 		// Slide and fade animation
 		int animatedY = (int) (panelY - (60 * (1.0f - animationProgress)));
 		int alpha = (int) (224 * animationProgress);
@@ -141,37 +139,37 @@ public class NebulaMenuScreen extends Screen {
 		// Main panel with adjusted alpha
 		int bgMain = (alpha << 24) | (BG_MAIN & 0x00FFFFFF);
 		int bgSidebar = (alpha << 24) | (BG_SIDEBAR & 0x00FFFFFF);
-		
-		UIHelper.drawRoundedRect(graphics, panelX, animatedY, PANEL_WIDTH, PANEL_HEIGHT, 
-			CORNER_RADIUS, bgMain);
-		
+
+		UIHelper.drawRoundedRect(graphics, panelX, animatedY, PANEL_WIDTH, PANEL_HEIGHT,
+				CORNER_RADIUS, bgMain);
+
 		// Sidebar
-		UIHelper.drawRoundedRect(graphics, panelX, animatedY, SIDEBAR_WIDTH, PANEL_HEIGHT, 
-			CORNER_RADIUS, bgSidebar);
-		
+		UIHelper.drawRoundedRect(graphics, panelX, animatedY, SIDEBAR_WIDTH, PANEL_HEIGHT,
+				CORNER_RADIUS, bgSidebar);
+
 		// Accent borders
-		UIHelper.drawRoundedRect(graphics, panelX, animatedY, PANEL_WIDTH, 3, 
-			CORNER_RADIUS, ACCENT_SECONDARY);
-		
+		UIHelper.drawRoundedRect(graphics, panelX, animatedY, PANEL_WIDTH, 3,
+				CORNER_RADIUS, ACCENT_SECONDARY);
+
 		graphics.fill(panelX + SIDEBAR_WIDTH, animatedY + 10,
-			panelX + SIDEBAR_WIDTH + 2, animatedY + PANEL_HEIGHT - 10, ACCENT_PRIMARY);
-		
+				panelX + SIDEBAR_WIDTH + 2, animatedY + PANEL_HEIGHT - 10, ACCENT_PRIMARY);
+
 		// Glow effect on top
 		UIHelper.drawGradientRect(graphics, panelX, animatedY + 3, PANEL_WIDTH, 30,
-			0x40A78BFA, 0x00A78BFA);
+				0x40A78BFA, 0x00A78BFA);
 	}
 
 	private void renderHeader(GuiGraphics graphics, int panelX, int animatedY) {
 		if (titleFont != null) {
-			titleFont.drawCenteredString(graphics, "NEBULA", 
-				panelX + SIDEBAR_WIDTH / 2, animatedY + 22, ACCENT_HIGHLIGHT);
-			titleFont.drawCenteredString(graphics, "CLIENT", 
-				panelX + SIDEBAR_WIDTH / 2, animatedY + 46, TEXT_SECONDARY);
+			titleFont.drawCenteredString(graphics, "NEBULA",
+					panelX + SIDEBAR_WIDTH / 2, animatedY + 22, ACCENT_HIGHLIGHT);
+			titleFont.drawCenteredString(graphics, "CLIENT",
+					panelX + SIDEBAR_WIDTH / 2, animatedY + 46, TEXT_SECONDARY);
 		} else {
-			graphics.drawCenteredString(this.font, "§l§nNEBULA", 
-				panelX + SIDEBAR_WIDTH / 2, animatedY + 22, ACCENT_HIGHLIGHT);
-			graphics.drawCenteredString(this.font, "§lCLIENT", 
-				panelX + SIDEBAR_WIDTH / 2, animatedY + 40, TEXT_SECONDARY);
+			graphics.drawCenteredString(this.font, "§l§nNEBULA",
+					panelX + SIDEBAR_WIDTH / 2, animatedY + 22, ACCENT_HIGHLIGHT);
+			graphics.drawCenteredString(this.font, "§lCLIENT",
+					panelX + SIDEBAR_WIDTH / 2, animatedY + 40, TEXT_SECONDARY);
 		}
 	}
 
@@ -179,31 +177,31 @@ public class NebulaMenuScreen extends Screen {
 		String title = currentCategory.getDisplayName().toUpperCase();
 		int moduleCount = ModuleManager.getInstance().getModulesByCategory(currentCategory).size();
 		String subtitle = moduleCount + " module" + (moduleCount != 1 ? "s" : "");
-		
+
 		if (buttonFont != null) {
-			buttonFont.drawString(graphics, title, 
-				panelX + SIDEBAR_WIDTH + 25, animatedY + 25, TEXT_PRIMARY);
-			buttonFont.drawString(graphics, subtitle, 
-				panelX + SIDEBAR_WIDTH + 25, animatedY + 45, TEXT_MUTED);
+			buttonFont.drawString(graphics, title,
+					panelX + SIDEBAR_WIDTH + 25, animatedY + 25, TEXT_PRIMARY);
+			buttonFont.drawString(graphics, subtitle,
+					panelX + SIDEBAR_WIDTH + 25, animatedY + 45, TEXT_MUTED);
 		} else {
-			graphics.drawString(this.font, "§l" + title, 
-				panelX + SIDEBAR_WIDTH + 25, animatedY + 25, TEXT_PRIMARY);
-			graphics.drawString(this.font, subtitle, 
-				panelX + SIDEBAR_WIDTH + 25, animatedY + 40, TEXT_MUTED);
+			graphics.drawString(this.font, "§l" + title,
+					panelX + SIDEBAR_WIDTH + 25, animatedY + 25, TEXT_PRIMARY);
+			graphics.drawString(this.font, subtitle,
+					panelX + SIDEBAR_WIDTH + 25, animatedY + 40, TEXT_MUTED);
 		}
 	}
 
 	private void renderFooter(GuiGraphics graphics, int panelX, int animatedY) {
 		String footerText = "Press ESC or Right Shift to close";
-		graphics.drawCenteredString(this.font, footerText, 
-			panelX + SIDEBAR_WIDTH / 2, animatedY + PANEL_HEIGHT - 25, TEXT_MUTED);
+		graphics.drawCenteredString(this.font, footerText,
+				panelX + SIDEBAR_WIDTH / 2, animatedY + PANEL_HEIGHT - 25, TEXT_MUTED);
 	}
 
 	private void renderButtons(GuiGraphics graphics, int panelX, int animatedY, int mouseX, int mouseY) {
 		// Render category tabs
 		for (CategoryTab tab : categoryTabs) {
-			tab.render(graphics, panelX, animatedY, mouseX, mouseY, 
-				currentCategory, this.font, buttonFont);
+			tab.render(graphics, panelX, animatedY, mouseX, mouseY,
+					currentCategory, this.font, buttonFont);
 		}
 
 		// Render module buttons
@@ -232,8 +230,14 @@ public class NebulaMenuScreen extends Screen {
 
 			// Check module buttons
 			for (ModButton btn : modButtons) {
-				if (btn.isMouseOver(panelX, animatedY, (int) mouseX, (int) mouseY)) {
-					btn.toggle();
+				ModButton.ClickResult result = btn.mouseClicked(panelX, animatedY, (int) mouseX,
+						(int) mouseY);
+				if (result == ModButton.ClickResult.OPEN_OPTIONS) {
+					// Open the options screen for this module
+					this.minecraft.setScreen(new ModuleOptionsScreen(this, btn.getModule()));
+					return true;
+				} else if (result == ModButton.ClickResult.TOGGLE) {
+					// Just toggled, nothing else to do
 					return true;
 				}
 			}
@@ -258,7 +262,9 @@ public class NebulaMenuScreen extends Screen {
 	@Override
 	public void removed() {
 		super.removed();
-		if (titleFont != null) titleFont.cleanup();
-		if (buttonFont != null) buttonFont.cleanup();
+		if (titleFont != null)
+			titleFont.cleanup();
+		if (buttonFont != null)
+			buttonFont.cleanup();
 	}
 }

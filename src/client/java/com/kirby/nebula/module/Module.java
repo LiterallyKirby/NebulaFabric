@@ -1,6 +1,10 @@
 package com.kirby.nebula.module;
 
 import com.kirby.nebula.Nebula;
+import com.kirby.nebula.module.settings.Setting;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class Module {
 	private final String name;
@@ -8,13 +12,14 @@ public abstract class Module {
 	private final Category category;
 	private boolean enabled;
 	private int keyBind;
+	private final List<Setting<?>> settings = new ArrayList<>();
 
 	public Module(String name, String description, Category category) {
 		this.name = name;
 		this.description = description;
 		this.category = category;
 		this.enabled = false;
-		this.keyBind = 0; // No keybind by default
+		this.keyBind = 0;
 	}
 
 	/**
@@ -62,6 +67,27 @@ public abstract class Module {
 		} else {
 			onDisable();
 		}
+	}
+
+	/**
+	 * Add a setting to this module
+	 */
+	protected void addSetting(Setting<?> setting) {
+		settings.add(setting);
+	}
+
+	/**
+	 * Get all settings for this module
+	 */
+	public List<Setting<?>> getSettings() {
+		return settings;
+	}
+
+	/**
+	 * Check if this module has any settings
+	 */
+	public boolean hasSettings() {
+		return !settings.isEmpty();
 	}
 
 	// Getters
