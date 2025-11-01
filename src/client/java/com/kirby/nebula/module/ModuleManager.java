@@ -43,6 +43,7 @@ public class ModuleManager {
 
 private void registerCombatModules() {
 	modules.add(new Velocity());
+	modules.add(new AutoCrystal());
 	modules.add(new LeftClicker());
 }
 
