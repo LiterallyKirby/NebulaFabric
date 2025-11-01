@@ -27,7 +27,7 @@ public class SettingWidget {
 		this.setting = setting;
 	}
 
-	public void render(GuiGraphics g, int panelX, int animatedY, int mouseX, int mouseY, 
+	public void render(GuiGraphics g, int panelX, int animatedY, int mouseX, int mouseY,
 			Font defaultFont, CustomFontRenderer customFont) {
 		int x = panelX + relX;
 		int y = animatedY + relY;
@@ -54,7 +54,8 @@ public class SettingWidget {
 				renderBooleanControl(g, x, y, (BooleanSetting) setting);
 				break;
 			case NUMBER:
-				renderNumberControl(g, x, y, mouseX, mouseY, defaultFont, (NumberSetting) setting);
+				renderNumberControl(g, panelX, animatedY, x, y, mouseX, mouseY, defaultFont,
+						(NumberSetting) setting);
 				break;
 			case MODE:
 				renderModeControl(g, x, y, defaultFont, customFont, (ModeSetting) setting);
@@ -74,13 +75,12 @@ public class SettingWidget {
 		// Toggle circle
 		int circleX = enabled ? toggleX + 20 : toggleX + 4;
 		int circleY = toggleY + 4;
-		g.fill(circleX, circleY, circleX + 8, circleY + 8, 0xFFFFFFFF);
-		
+
 		// Make circle rounded
 		UIHelper.drawRoundedRect(g, circleX - 1, circleY - 1, 10, 10, 5, 0xFFFFFFFF);
 	}
 
-	private void renderNumberControl(GuiGraphics g, int x, int y, int mouseX, int mouseY, 
+	private void renderNumberControl(GuiGraphics g, int panelX, int animatedY, int x, int y, int mouseX, int mouseY,
 			Font font, NumberSetting setting) {
 		int sliderX = x + 12;
 		int sliderY = y + 32;
@@ -104,21 +104,20 @@ public class SettingWidget {
 		String valueText = String.format("%.1f", setting.getValue());
 		g.drawString(font, valueText, x + width - 60, y + 28, TEXT_PRIMARY);
 
-		// Handle dragging
+		// Handle dragging - only if THIS widget is dragging
 		if (dragging) {
-			int relMouseX = mouseX - (panelX + sliderX);
+			int absoluteSliderX = panelX + relX + 12;
+			int relMouseX = mouseX - absoluteSliderX;
 			double newProgress = Math.max(0, Math.min(1, (double) relMouseX / sliderWidth));
 			double newValue = setting.getMin() + (setting.getMax() - setting.getMin()) * newProgress;
-			
+
 			// Round to increment
 			newValue = Math.round(newValue / setting.getIncrement()) * setting.getIncrement();
 			setting.setValue(newValue);
 		}
 	}
 
-	private int panelX; // Store for dragging calculations
-
-	private void renderModeControl(GuiGraphics g, int x, int y, Font defaultFont, 
+	private void renderModeControl(GuiGraphics g, int x, int y, Font defaultFont,
 			CustomFontRenderer customFont, ModeSetting setting) {
 		int buttonX = x + width - 120;
 		int buttonY = y + height / 2 - 10;
@@ -131,11 +130,11 @@ public class SettingWidget {
 		// Current mode text
 		String modeText = setting.getValue();
 		if (customFont != null) {
-			customFont.drawCenteredString(g, modeText, buttonX + buttonWidth / 2, 
-				buttonY + (buttonHeight - customFont.getFontHeight()) / 2, TEXT_PRIMARY);
+			customFont.drawCenteredString(g, modeText, buttonX + buttonWidth / 2,
+					buttonY + (buttonHeight - customFont.getFontHeight()) / 2, TEXT_PRIMARY);
 		} else {
-			g.drawCenteredString(defaultFont, modeText, buttonX + buttonWidth / 2, 
-				buttonY + (buttonHeight - 8) / 2, TEXT_PRIMARY);
+			g.drawCenteredString(defaultFont, modeText, buttonX + buttonWidth / 2,
+					buttonY + (buttonHeight - 8) / 2, TEXT_PRIMARY);
 		}
 
 		// Arrows
@@ -144,11 +143,12 @@ public class SettingWidget {
 	}
 
 	public boolean mouseClicked(int panelX, int animatedY, int mouseX, int mouseY) {
-		this.panelX = panelX; // Store for dragging
 		int x = panelX + relX;
 		int y = animatedY + relY;
 
 		if (!isMouseOver(panelX, animatedY, mouseX, mouseY)) {
+			// If clicking outside, stop dragging
+			dragging = false;
 			return false;
 		}
 
@@ -156,8 +156,8 @@ public class SettingWidget {
 			case BOOLEAN:
 				int toggleX = x + width - 50;
 				int toggleY = y + height / 2 - 8;
-				if (mouseX >= toggleX && mouseX <= toggleX + 36 && 
-					mouseY >= toggleY && mouseY <= toggleY + 16) {
+				if (mouseX >= toggleX && mouseX <= toggleX + 36 &&
+						mouseY >= toggleY && mouseY <= toggleY + 16) {
 					((BooleanSetting) setting).toggle();
 					return true;
 				}
@@ -167,8 +167,17 @@ public class SettingWidget {
 				int sliderY = y + 32;
 				int sliderWidth = width - 80;
 				if (mouseX >= sliderX && mouseX <= sliderX + sliderWidth &&
-					mouseY >= sliderY - 8 && mouseY <= sliderY + 12) {
+						mouseY >= sliderY - 8 && mouseY <= sliderY + 12) {
 					dragging = true;
+					// Update value immediately on click
+					int relMouseX = mouseX - sliderX;
+					double newProgress = Math.max(0, Math.min(1, (double) relMouseX / sliderWidth));
+					NumberSetting numSetting = (NumberSetting) setting;
+					double newValue = numSetting.getMin()
+							+ (numSetting.getMax() - numSetting.getMin()) * newProgress;
+					newValue = Math.round(newValue / numSetting.getIncrement())
+							* numSetting.getIncrement();
+					numSetting.setValue(newValue);
 					return true;
 				}
 				break;
@@ -178,7 +187,7 @@ public class SettingWidget {
 				int buttonWidth = 100;
 				int buttonHeight = 20;
 				if (mouseX >= buttonX && mouseX <= buttonX + buttonWidth &&
-					mouseY >= buttonY && mouseY <= buttonY + buttonHeight) {
+						mouseY >= buttonY && mouseY <= buttonY + buttonHeight) {
 					((ModeSetting) setting).cycle();
 					return true;
 				}
@@ -190,7 +199,6 @@ public class SettingWidget {
 
 	public boolean mouseDragged(int panelX, int animatedY, int mouseX, int mouseY) {
 		if (dragging && setting.getType() == SettingType.NUMBER) {
-			this.panelX = panelX;
 			return true;
 		}
 		return false;

@@ -1,10 +1,10 @@
 package com.kirby.nebula.module;
 
 import com.kirby.nebula.module.modules.combat.*;
-//import com.kirby.nebula.module.modules.rendering.*;
-//import com.kirby.nebula.module.modules.world.*;
+import com.kirby.nebula.module.modules.rendering.*;
+import com.kirby.nebula.module.modules.world.*;
 import com.kirby.nebula.module.modules.movement.*;
-//import com.kirby.nebula.module.modules.player.*;
+import com.kirby.nebula.module.modules.player.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,25 +41,29 @@ public class ModuleManager {
 	// === MODULE REGISTRATION ===
 	// Simply add new modules to these methods to include them in the client
 
-	private void registerCombatModules() {
-		modules.add(new Velocity());
-	}
+private void registerCombatModules() {
+	modules.add(new Velocity());
+	modules.add(new LeftClicker());
+}
 
-	private void registerRenderingModules() {
+private void registerPlayerModules() {
+	modules.add(new RightClicker());
+}
 
-	}
+private void registerRenderingModules() {
+	modules.add(new Fullbright());
+}
 
-	private void registerWorldModules() {
+private void registerWorldModules() {
+	modules.add(new NoFall());
+}
 
-	}
+private void registerMovementModules() {
+	modules.add(new ToggleSprint());
+	modules.add(new Speed());
+	modules.add(new Fly());
 
-	private void registerMovementModules() {
-		modules.add(new ToggleSprint());
-	}
-
-	private void registerPlayerModules() {
-
-	}
+}
 
 	// === PUBLIC API ===
 

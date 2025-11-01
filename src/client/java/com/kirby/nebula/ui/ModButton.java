@@ -1,5 +1,6 @@
 package com.kirby.nebula.ui;
 
+import com.kirby.nebula.module.Module;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
@@ -10,21 +11,25 @@ public class ModButton {
 	private final String description;
 	private final Runnable onPress;
 	private boolean enabled;
+	private final Module module;
 
-	// Purple theme colors
-	private static final int BG_ENABLED = 0xFF6B46C1;
-	private static final int BG_HOVER = 0xFF3D2862;
-	private static final int BG_DEFAULT = 0xFF2A1B3D;
-	private static final int BORDER_ENABLED = 0xFFA78BFA;
-	private static final int BORDER_HOVER = 0xFF6B46C1;
-	private static final int BORDER_DEFAULT = 0xFF4C2F91;
+	private static final int BG_ENABLED = 0xFF5B21B6;
+	private static final int BG_HOVER = 0xFF2D1B4E;
+	private static final int BG_DEFAULT = 0xFF1A1025;
+	private static final int BORDER_ENABLED = 0xFF8B5CF6;
+	private static final int BORDER_HOVER = 0xFF5B21B6;
+	private static final int BORDER_DEFAULT = 0xFF3D2862;
 	private static final int TEXT_ENABLED = 0xFFFFFFFF;
 	private static final int TEXT_DEFAULT = 0xFFDDD6FE;
 	private static final int TEXT_DESC = 0xFF9F7AEA;
 	private static final int INDICATOR_ON = 0xFF10B981;
 
-	public ModButton(int relX, int relY, int width, int height, Component label, 
-			String description, boolean enabled, Runnable onPress) {
+	public enum ClickResult {
+		NONE, TOGGLE, OPEN_OPTIONS
+	}
+
+	public ModButton(int relX, int relY, int width, int height, Component label,
+			String description, boolean enabled, Runnable onPress, Module module) {
 		this.relX = relX;
 		this.relY = relY;
 		this.width = width;
@@ -33,6 +38,7 @@ public class ModButton {
 		this.description = description;
 		this.enabled = enabled;
 		this.onPress = onPress;
+		this.module = module;
 	}
 
 	public void render(GuiGraphics g, int panelX, int animatedY, int mouseX, int mouseY,
@@ -62,16 +68,15 @@ public class ModButton {
 		if (customFont != null) {
 			int textY = y + 8;
 			customFont.drawString(g, text, x + 12, textY, textColor);
-			
+
 			// Description text (smaller)
 			if (description != null && !description.isEmpty()) {
-				// Use default font for description since we need smaller text
 				g.drawString(defaultFont, description, x + 12, y + height - 14, TEXT_DESC);
 			}
 		} else {
 			String styledText = enabled ? "§l" + text : text;
 			g.drawString(defaultFont, styledText, x + 12, y + 8, textColor);
-			
+
 			if (description != null && !description.isEmpty()) {
 				g.drawString(defaultFont, description, x + 12, y + height - 14, TEXT_DESC);
 			}
@@ -90,6 +95,13 @@ public class ModButton {
 			g.fill(indicatorX + 1, indicatorY + 1, indicatorX + 7, indicatorY + 7, 0xFF9CA3AF);
 		}
 
+		// Render options gear icon if module has settings
+		if (module.hasSettings()) {
+			int gearX = x + width - 50;
+			int gearY = y + height / 2 - 6;
+			g.drawString(defaultFont, "⚙", gearX, gearY, 0xFFC4B5FD);
+		}
+
 		// Hover effect
 		if (hovered && !enabled) {
 			UIHelper.drawRoundedRect(g, x + 2, y + 2, width - 4, height - 4, 4, 0x20A78BFA);
@@ -100,6 +112,28 @@ public class ModButton {
 		int x = panelX + relX;
 		int y = animatedY + relY;
 		return mouseX >= x && mouseY >= y && mouseX < x + width && mouseY < y + height;
+	}
+
+	public ClickResult mouseClicked(int panelX, int animatedY, int mouseX, int mouseY) {
+		if (!isMouseOver(panelX, animatedY, mouseX, mouseY)) {
+			return ClickResult.NONE;
+		}
+
+		int x = panelX + relX;
+		int y = animatedY + relY;
+
+		// Check if clicking on options gear
+		if (module.hasSettings()) {
+			int gearX = x + width - 50;
+			int gearY = y + height / 2 - 6;
+			if (mouseX >= gearX && mouseX <= gearX + 12 && mouseY >= gearY && mouseY <= gearY + 12) {
+				return ClickResult.OPEN_OPTIONS;
+			}
+		}
+
+		// Otherwise toggle the module
+		toggle();
+		return ClickResult.TOGGLE;
 	}
 
 	public void toggle() {
@@ -113,5 +147,9 @@ public class ModButton {
 
 	public void setEnabled(boolean enabled) {
 		this.enabled = enabled;
+	}
+
+	public Module getModule() {
+		return module;
 	}
 }

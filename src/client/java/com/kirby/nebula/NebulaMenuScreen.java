@@ -16,17 +16,18 @@ import java.util.List;
 @Environment(EnvType.CLIENT)
 public class NebulaMenuScreen extends Screen {
 	// UI Constants - Deep Purple Theme
+	// UI Constants - Darker Purple/Black Theme
 	private static final int PANEL_WIDTH = 650;
 	private static final int PANEL_HEIGHT = 450;
 	private static final int SIDEBAR_WIDTH = 180;
 	private static final int CORNER_RADIUS = 10;
 
-	// Deep Purple Color Scheme
-	private static final int BG_MAIN = 0xE0181025; // Dark purple background
-	private static final int BG_SIDEBAR = 0xE00F0820; // Darker purple sidebar
-	private static final int ACCENT_PRIMARY = 0xFF6B46C1; // Medium purple
-	private static final int ACCENT_SECONDARY = 0xFF8B5CF6; // Light purple
-	private static final int ACCENT_HIGHLIGHT = 0xFFA78BFA; // Lighter purple
+	// Darker Purple/Black Color Scheme
+	private static final int BG_MAIN = 0xF00A0A0F; // Almost black with slight purple tint
+	private static final int BG_SIDEBAR = 0xF0050508; // Deeper black
+	private static final int ACCENT_PRIMARY = 0xFF5B21B6; // Darker purple
+	private static final int ACCENT_SECONDARY = 0xFF7C3AED; // Medium purple
+	private static final int ACCENT_HIGHLIGHT = 0xFF8B5CF6; // Lighter purple for highlights
 	private static final int TEXT_PRIMARY = 0xFFFFFFFF;
 	private static final int TEXT_SECONDARY = 0xFFC4B5FD;
 	private static final int TEXT_MUTED = 0xFF9F7AEA;
@@ -107,7 +108,8 @@ public class NebulaMenuScreen extends Screen {
 					Component.literal(module.getName()),
 					module.getDescription(),
 					module.isEnabled(),
-					() -> module.toggle()));
+					() -> module.toggle(),
+					module)); // Add the module parameter
 		}
 	}
 
