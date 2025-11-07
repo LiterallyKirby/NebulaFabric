@@ -1,0 +1,16 @@
+{
+	"required": true,
+	"package": "com.kirby.nebula.mixin.client",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"ExampleClientMixin",
+		"ReachMixin",
+		"EntityMixin",
+		"FastPlaceMixin",
+		"SafeWalkMixin",
+		"VelocityMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
